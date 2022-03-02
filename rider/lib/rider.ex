@@ -1,18 +1,12 @@
 defmodule Rider do
-  @moduledoc """
-  Documentation for `Rider`.
-  """
+  @rider Rider
 
-  @doc """
-  Hello world.
+    children = [
+    Mutex.child_spec(@rider)
+    ]
+    {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one)
 
-  ## Examples
-
-      iex> Rider.hello()
-      :world
-
-  """
-  def hello do
+  def rider do
     :world
   end
 end
