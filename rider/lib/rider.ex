@@ -45,13 +45,39 @@ defmodule Rider do
       r =:rand.uniform(90)/17.665
       "Coordinates: #{r}"
     end
+
+    def menu do
+      IO.puts("###############################################################")
+      op = IO.gets("select one of the following \n")
+      redirector(op)
+    end
+
+    def redirector(e) do
+      eF= String.trim(e,"\n") |> Integer.parse()
+      elem(eF,0)
+    end
+
+    def registerInput do
+      new = IO.gets("select one of the following \n")
+      register(new)
+    end
+
+    def register(e) do
+      eF= e |> String.trim("\n") |> String.split() |> List.to_tuple()
+
+      eF
+    end
+
+    def reqService do
+         Enum.map(apps, fn x -> %{:app => x} end)
+    end
     
     def start_link do
       children = [
       Mutex.child_spec(@menu)
       ]
-      {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one)
-        Agent.start_link(fn ->%{} end , @rider)
+      {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
+      Agent.start_link(fn ->%{} end , @rider)
     end
     
 end
