@@ -79,7 +79,7 @@ defmodule Rider do
 
     def req_service do
 
-        apps = currentApps()
+        apps = current_apps()
          Enum.map(apps, fn x -> Agent.update(@reqs,fn tuple -> Tuple.append(tuple, %{:apps => x, :payment => rand_payType() }) end) end)
          
 
