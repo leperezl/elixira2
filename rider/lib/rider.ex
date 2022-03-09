@@ -15,7 +15,10 @@
             #-> 2 functions, one to select init and one that will return after X time
 defmodule Rider do
   @menu MenuMutex
-  @rider __MODULE__
+  @apps Apps
+  @reqs Requests
+  @count Count
+
   @rideType {:food, :drive}
   @comm {:api, :phone, :mssg, :fax}
   @payType {:cash, :visa, :mastercard, :points, :epay}
@@ -24,24 +27,24 @@ defmodule Rider do
     def comm do @comm end
     def rideType do @rideType end
 
-    def randPayType() do
+    def rand_payType() do
       elem(@payType,:rand.uniform(5) -1)
     end
    
-    def randComm() do
+    def rand_comm() do
       elem(@comm,:rand.uniform(4) -1)
     end
    
-    def randRideType() do
+    def rand_rideType() do
       elem(@rideType,:rand.uniform(2) -1)
     end
     
-    def randRideTime() do
+    def rand_rideTime() do
       r =:rand.uniform(90)
       "#{r} minutes"
     end
 
-    def randLocation() do
+    def rand_location() do
       r =:rand.uniform(90)/17.665
       "Coordinates: #{r}"
     end
@@ -57,27 +60,53 @@ defmodule Rider do
       elem(eF,0)
     end
 
-    def registerInput do
+    def register do
       new = IO.gets("select one of the following \n")
-      register(new)
+      register_op(new)
     end
 
-    def register(e) do
+    #We need the apps key in agent get(map, key, default \\ nil)
+    def register_op(e) do
       eF= e |> String.trim("\n") |> String.split() |> List.to_tuple()
-
-      eF
+      add_item(eF)
+      
     end
 
-    def reqService do
-         Enum.map(apps, fn x -> %{:app => x} end)
+    def add_item(app) do
+    Agent.update(@apps,fn list -> [app | list] end)
+        
+    end
+
+    def req_service do
+
+        apps = currentApps()
+         Enum.map(apps, fn x -> Agent.update(@reqs,fn tuple -> Tuple.append(tuple, %{:apps => x, :payment => rand_payType() }) end) end)
+         
+
+         
     end
     
-    def start_link do
-      children = [
-      Mutex.child_spec(@menu)
-      ]
-      {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
-      Agent.start_link(fn ->%{} end , @rider)
+    def start do
+      #children = [
+      #Mutex.child_spec(@menu)
+      #]
+      #{:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
+      Agent.start_link(fn -> [] end , name: @apps)
+      Agent.start_link(fn -> {} end , name: @reqs)
+      Agent.start_link(fn -> 0 end , name: @count)
+      
+    end
+
+    def current_apps do
+      Agent.get(@apps, fn content -> content end)
+    end
+
+    def current_reqs do
+      Agent.get(@reqs, fn content -> content end)
+    end
+
+    def current_count do
+      Agent.get(@count, fn content -> content end)
     end
     
 end
