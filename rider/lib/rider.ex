@@ -3,7 +3,7 @@
             # Id: :Name constant      Comm: API  (no idea)
   # Service Req
             # When registered ^Service  For each, services should be generated. Have pattern matching and spawn generator or List Iterator
-            # Id: "Service+Count"  Username: "String"   Type: :Food :Drive     Price: Random Int        Payment:        TimeSent:
+            #Username: "String"   Type: :Food :Drive     Price: Random Int        Payment:        TimeSent:
             # For each ^Service, each service has Type and 3 possible payment methods (we can use just one)
   #Chosen Ride
             # When User selects "Service+Count" ex: "Uber5" (Doubt) -> i have no idea how to select those
@@ -40,8 +40,13 @@ defmodule Rider do
     end
     
     def rand_rideTime() do
+      r =:rand.uniform(20)
+      r
+    end
+
+    def rand_price() do
       r =:rand.uniform(90)
-      "#{r} minutes"
+      "$#{r}"
     end
 
     def rand_location() do
@@ -73,14 +78,13 @@ defmodule Rider do
     end
 
     def add_item(app) do
-    Agent.update(@apps,fn list -> [app | list] end)
-        
+    Agent.update(@apps,fn list -> [app | list] end) 
     end
 
     def req_service do
 
         apps = current_apps()
-         Enum.map(apps, fn x -> Agent.update(@reqs,fn tuple -> Tuple.append(tuple, %{:apps => x, :payment => rand_payType() }) end) end)
+         Enum.map(apps, fn x -> Agent.update(@reqs,fn tuple -> Tuple.append(tuple, %{:apps => x,:type => rand_rideTyoe(), :price=> rand_price(), :payment => rand_payType(), :duration=> rand_rideTime(), :pickUP => rand_location(), :dropoff => rand_location() }) end) end)
          
 
          
@@ -107,6 +111,10 @@ defmodule Rider do
 
     def current_count do
       Agent.get(@count, fn content -> content end)
+    end
+
+    def add_count do
+      Agent.update(@count, fn content -> content end)
     end
     
 end
