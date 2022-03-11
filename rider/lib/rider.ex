@@ -18,6 +18,7 @@ defmodule Rider do
   @apps Apps
   @reqs Requests
   @count Count
+  @select Selected
 
   @rideType {:food, :drive}
   @comm {:api, :phone, :mssg, :fax}
@@ -66,37 +67,101 @@ defmodule Rider do
     end
 
     def register do
-      new = IO.gets("select one of the following \n")
+      new = IO.gets("To register an app:  <AppName> <Communications channel>  \n")
       register_op(new)
+      current_apps()
+    end
+
+    def unregister(app) do
+      IO.puts("To UnRegister an app:  <AppName> <Communications channel>  \n ------------------- \n (PRO TIP) make sure that you type it correctly haha")
+      unregister_op(app)
+      current_apps()
     end
 
     #We need the apps key in agent get(map, key, default \\ nil)
     def register_op(e) do
       eF= e |> String.trim("\n") |> String.split() |> List.to_tuple()
-      add_item(eF)
+      case eF do
+        {a,b} -> add_item({a,b})
+         _ -> IO.puts("- --- ---- Not the correct Structure !  --- --- Please enter <app> <channel>")
+      end
+    end
+
+      def unregister_op(e) do
+        case e do
+          {a,b} -> del_item({a,b})
+            _-> IO.puts("- --- ---- Not the correct Structure !  --- --- Please enter {<app>,<channel>}")
+        end
+      
       
     end
 
     def add_item(app) do
-    Agent.update(@apps,fn list -> [app | list] end) 
+      Agent.update(@apps,fn list -> [app | list] end) 
     end
 
-    def req_service do
+    def del_item(app) do
+      Agent.update(@apps,fn list -> List.delete(list,app) end) 
+    end
 
+    #helper function that generates requests based on the current apps registered
+    def requests do
         apps = current_apps()
-         Enum.map(apps, fn x -> Agent.update(@reqs,fn tuple -> Tuple.append(tuple, %{:apps => x,:type => rand_rideTyoe(), :price=> rand_price(), :payment => rand_payType(), :duration=> rand_rideTime(), :pickUP => rand_location(), :dropoff => rand_location() }) end) end)
-         
-
-         
+        appTup = List.to_tuple(apps)
+        case appTup do
+          {x} -> req_spawner(x)
+          {x,y} -> req_spawner2(x,y)
+          {x,y,z} -> 3
+          {x,y,z,a} ->4
+          {x,y,z,a,b} -> 5
+          _ -> {IO.puts("-------- More than 5 apps ? come on man ! delete one \n - --- - Use Rider.unregister({<app>, <comm>})")}
+        end
+        #Enum.map(apps, fn x -> req_spawner(x) end) 
+  
     end
+
+    def req_spawner(x) do
+      spawn(fn -> make_req(x) end) 
+    end
+
+    def req_spawner2(x,y) do
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+    end
+
+
+
+    def make_req(x) do
+      IO.inspect(x)
+      children = [
+        Mutex.child_spec(@menu)
+        ]
+        {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
+        resource_id= {User,{:id,1}}
+
+        lock = Mutex.await(@menu, resource_id)
+
+        Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:apps => x,:type => rand_rideType(), :price=> rand_price(), 
+                                                              :payment => rand_payType(), :duration=> rand_rideTime(), :pickUP => rand_location(), 
+                                                              :dropoff => rand_location(), :created =>  DateTime.utc_now()} ) end)
+        
+        :timer.sleep(1000)
+        num =current_count()
+        tup = current_reqs()
+        req = elem(tup, 0)
+        add_count()
+        res = {num, req}
+        IO.inspect(res)
+        Mutex.release(@menu, lock)
+    end
+
+    #When 
+
     
     def start do
-      #children = [
-      #Mutex.child_spec(@menu)
-      #]
-      #{:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
+      Agent.start_link(fn -> %{}end, name: @select)
       Agent.start_link(fn -> 0 end , name: @count)
       
     end
@@ -114,7 +179,15 @@ defmodule Rider do
     end
 
     def add_count do
-      Agent.update(@count, fn content -> content end)
+      Agent.update(@count, fn content -> content + 1 end)
+    end
+
+    def reset_count do
+      Agent.update(@count, fn content -> 0 end)
+    end
+
+    def reset_reqs do
+      Agent.update(@reqs, fn content -> {} end)
     end
     
 end
