@@ -55,12 +55,6 @@ defmodule Rider do
       "Coordinates: #{r}"
     end
 
-    def menu do
-      IO.puts("###############################################################")
-      op = IO.gets("select one of the following \n")
-      redirector(op)
-    end
-
     def redirector(e) do
       eF= String.trim(e,"\n") |> Integer.parse()
       elem(eF,0)
@@ -89,18 +83,41 @@ defmodule Rider do
 
     def select() do
       {IO.puts("-- -- - -- -- - - -- - -- --- -- -- -- - -")}
-      new = IO.gets("Please select one in the next (10 secs):  Type <number> from 0 to 9  (it selects that number)\n")
+      new = IO.gets("Please select one in the next (10 secs):  Type <number> thats in the list above (it selects that number)\n")
       sel= new |> String.trim("\n") |> String.to_integer()
+      counter = current_count()
       cond do
-        is_integer(sel) -> add_select(sel)
-        is_integer(sel) == false -> IO.puts("- --- ---- Enter a number !!!")
+        sel < counter -> add_select(sel)
+        sel >= counter-> IO.puts("- --- ---- Not in List!!!")
       end
     end
 
     def add_select(sel) do
       tup = current_reqs()
       req = elem(tup, sel)
+      t = Time.diff(DateTime.utc_now(), Map.get(req,:created))
+      cond do
+        t <30 -> select_time(req)
+        t >=30 -> reselect(t)
+      end
+    end
 
+    def select_time(req) do
+      IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  v Current service vrrrooo oo ooo mmmm v")
+      Agent.update(@select, fn map -> req end)
+      IO.inspect(req)
+      sleep =Map.get(req, :duration)
+      IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  Service ongoing, please wait")
+      :timer.sleep(sleep*1000)
+      IO.puts("- -#{sleep} seconds Service Over   :)")
+      reset_select()
+      reset_reqs()
+    end
+
+    def reselect(t) do
+        r = t-30
+        IO.puts("That request has expired by #{r} seconds")
+        select()
     end
 
       def unregister_op(e) do
@@ -132,8 +149,20 @@ defmodule Rider do
           {x,y,z,a,b} -> req_spawner5(x,y,z,a,b)
           _ -> {IO.puts("-------- More than 5 apps ? come on man ! delete one \n - --- - Use Rider.unregister({<app>, <comm>})")}
         end
-        select()
+        menu()
         #Enum.map(apps, fn x -> req_spawner(x) end) 
+    end
+
+    def menu do
+      ch = IO.gets("--------- -- -- --- -- - \n 1. More requests \n 2. Select a service \n 3. Exit \n 4. Reset requests \n chOOse one option!!\n")
+      sel= ch |> String.trim("\n") |> String.to_integer()
+      case sel do
+        1 -> requests()
+        2 -> select()
+        3 -> current_apps()
+        4 -> reset_reqs()
+        _ -> menu()
+      end
     end
 
     def req_spawner(x) do
@@ -249,6 +278,14 @@ defmodule Rider do
 
     def current_count do
       Agent.get(@count, fn content -> content end)
+    end
+
+    def current_select do
+      Agent.get(@select, fn content -> content end)
+    end
+
+    def reset_select do
+      Agent.get(@select, fn content -> %{} end)
     end
 
     def add_count do
