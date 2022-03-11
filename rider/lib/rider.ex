@@ -107,9 +107,9 @@ defmodule Rider do
       Agent.update(@select, fn map -> req end)
       IO.inspect(req)
       sleep =Map.get(req, :duration)
-      IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  Service ongoing, please wait")
+      IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  Service ongoing, please wait #{sleep} seconds ")
       :timer.sleep(sleep*1000)
-      IO.puts("- -#{sleep} seconds Service Over   :)")
+      IO.puts("- -Service Over   :)")
       reset_select()
       reset_reqs()
     end
