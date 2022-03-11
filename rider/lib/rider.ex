@@ -87,6 +87,22 @@ defmodule Rider do
       end
     end
 
+    def select() do
+      {IO.puts("-- -- - -- -- - - -- - -- --- -- -- -- - -")}
+      new = IO.gets("Please select one in the next (10 secs):  Type <number> from 0 to 9  (it selects that number)\n")
+      sel= new |> String.trim("\n") |> String.to_integer()
+      cond do
+        is_integer(sel) -> add_select(sel)
+        is_integer(sel) == false -> IO.puts("- --- ---- Enter a number !!!")
+      end
+    end
+
+    def add_select(sel) do
+      tup = current_reqs()
+      req = elem(tup, sel)
+
+    end
+
       def unregister_op(e) do
         case e do
           {a,b} -> del_item({a,b})
@@ -106,59 +122,117 @@ defmodule Rider do
 
     #helper function that generates requests based on the current apps registered
     def requests do
+        reset_reqs()
         apps = current_apps()
         appTup = List.to_tuple(apps)
         case appTup do
           {x} -> req_spawner(x)
           {x,y} -> req_spawner2(x,y)
-          {x,y,z} -> 3
-          {x,y,z,a} ->4
-          {x,y,z,a,b} -> 5
+          {x,y,z} -> req_spawner2(x,y,z)
+          {x,y,z,a} -> req_spawner2(x,y,z,a)
+          {x,y,z,a,b} -> req_spawner2(x,y,z,a,b)
           _ -> {IO.puts("-------- More than 5 apps ? come on man ! delete one \n - --- - Use Rider.unregister({<app>, <comm>})")}
         end
+        select()
         #Enum.map(apps, fn x -> req_spawner(x) end) 
-  
     end
 
     def req_spawner(x) do
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(x) end) 
       spawn(fn -> make_req(x) end) 
     end
 
     def req_spawner2(x,y) do
       spawn(fn -> make_req(y) end) 
       spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+    end
+
+    def req_spawner3(x,y,z) do
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(x) end) 
+    end
+
+    def req_spawner4(x,y,z,a) do
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(a) end) 
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(a) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(y) end) 
+    end
+
+    def req_spawner5(x,y,z,a, b) do
+      spawn(fn -> make_req(y) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(a) end) 
+      spawn(fn -> make_req(b) end) 
+      spawn(fn -> make_req(z) end) 
+      spawn(fn -> make_req(a) end) 
+      spawn(fn -> make_req(x) end) 
+      spawn(fn -> make_req(b) end) 
+      spawn(fn -> make_req(y) end) 
     end
 
 
 
     def make_req(x) do
-      IO.inspect(x)
-      children = [
-        Mutex.child_spec(@menu)
-        ]
-        {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
-        resource_id= {User,{:id,1}}
+      
 
-        lock = Mutex.await(@menu, resource_id)
+      resource_id= {User,{:id,1}}
+      lock = Mutex.await(@menu, resource_id)
 
-        Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:apps => x,:type => rand_rideType(), :price=> rand_price(), 
+      Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:apps => x,:type => rand_rideType(), :price=> rand_price(), 
                                                               :payment => rand_payType(), :duration=> rand_rideTime(), :pickUP => rand_location(), 
                                                               :dropoff => rand_location(), :created =>  DateTime.utc_now()} ) end)
         
-        :timer.sleep(1000)
-        num =current_count()
-        tup = current_reqs()
-        req = elem(tup, 0)
-        add_count()
-        res = {num, req}
-        IO.inspect(res)
-        Mutex.release(@menu, lock)
+      #:timer.sleep(1000)
+      num =current_count()
+      tup = current_reqs()
+      req = elem(tup, num)
+      add_count()
+      res = {num, req}
+      IO.inspect(res)
+      Mutex.release(@menu, lock)
     end
 
     #When 
 
     
     def start do
+      children = [
+        Mutex.child_spec(@menu)
+        ]
+        {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
+        
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
@@ -188,6 +262,7 @@ defmodule Rider do
 
     def reset_reqs do
       Agent.update(@reqs, fn content -> {} end)
+      reset_count()
     end
     
 end
