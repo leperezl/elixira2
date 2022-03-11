@@ -83,7 +83,7 @@ defmodule Rider do
 
     def select() do
       {IO.puts("-- -- - -- -- - - -- - -- --- -- -- -- - -")}
-      new = IO.gets("Please select one in the next (10 secs):  Type <number> thats in the list above (it selects that number)\n")
+      new = IO.gets("Please select one in the next (30 secs):  Type <number> thats in the list above (it selects that number)\n")
       sel= new |> String.trim("\n") |> String.to_integer()
       counter = current_count()
       cond do
@@ -123,7 +123,7 @@ defmodule Rider do
       def unregister_op(e) do
         case e do
           {a,b} -> del_item({a,b})
-            _-> IO.puts("- --- ---- Not the correct Structure !  --- --- Please enter {<app>,<channel>}")
+            _-> IO.puts('- --- ---- Not the correct Structure !  --- --- Please enter {"<app>","<channel>"}')
         end
       
       
@@ -138,7 +138,7 @@ defmodule Rider do
     end
 
     #helper function that generates requests based on the current apps registered
-    def requests do
+    def requests_make do
         apps = current_apps()
         appTup = List.to_tuple(apps)
         case appTup do
@@ -151,6 +151,14 @@ defmodule Rider do
         end
         menu()
         #Enum.map(apps, fn x -> req_spawner(x) end) 
+    end
+
+    def requests do
+      apps = Enum.count(current_apps())
+        cond do
+          apps == 0 -> register()
+          apps > 0 -> requests_make()
+        end
     end
 
     def menu do
@@ -290,6 +298,10 @@ defmodule Rider do
 
     def add_count do
       Agent.update(@count, fn content -> content + 1 end)
+    end
+
+    def reset_apps do
+      Agent.update(@apps, fn content -> [] end)
     end
 
     def reset_count do
