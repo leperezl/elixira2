@@ -122,15 +122,14 @@ defmodule Rider do
 
     #helper function that generates requests based on the current apps registered
     def requests do
-        reset_reqs()
         apps = current_apps()
         appTup = List.to_tuple(apps)
         case appTup do
           {x} -> req_spawner(x)
           {x,y} -> req_spawner2(x,y)
-          {x,y,z} -> req_spawner2(x,y,z)
-          {x,y,z,a} -> req_spawner2(x,y,z,a)
-          {x,y,z,a,b} -> req_spawner2(x,y,z,a,b)
+          {x,y,z} -> req_spawner3(x,y,z)
+          {x,y,z,a} -> req_spawner4(x,y,z,a)
+          {x,y,z,a,b} -> req_spawner5(x,y,z,a,b)
           _ -> {IO.puts("-------- More than 5 apps ? come on man ! delete one \n - --- - Use Rider.unregister({<app>, <comm>})")}
         end
         select()
