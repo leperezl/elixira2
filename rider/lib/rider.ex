@@ -23,6 +23,8 @@ defmodule Rider do
   @rideType {:food, :drive}
   @comm {:api, :phone, :mssg, :fax}
   @payType {:cash, :visa, :mastercard, :points, :epay}
+  @name{"John", "Dick", "Bruce", "violet", "Bella"}
+
 
     def payType do @payType end
     def comm do @comm end
@@ -31,7 +33,11 @@ defmodule Rider do
     def rand_payType() do
       elem(@payType,:rand.uniform(5) -1)
     end
-   
+
+    def rand_name() do
+      elem(@name,:rand.uniform(5) -1)
+    end
+
     def rand_comm() do
       elem(@comm,:rand.uniform(4) -1)
     end
@@ -104,9 +110,10 @@ defmodule Rider do
 
     def select_time(req) do
       IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  v Current service vrrrooo oo ooo mmmm v")
-      Agent.update(@select, fn map -> req end)
-      IO.inspect(req)
-      sleep =Map.get(req, :duration)
+      def = Map.merge(req, %{:duration=> rand_rideTime(), :pickUP => rand_location(), :dropoff => rand_location()}) 
+      Agent.update(@select, fn map -> def end)
+      IO.inspect(def)
+      sleep =Map.get(def, :duration)
       IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  Service ongoing, please wait #{sleep} seconds ")
       :timer.sleep(sleep*1000)
       IO.puts("- -Service Over   :)")
@@ -241,15 +248,11 @@ defmodule Rider do
 
 
     def make_req(x) do
-      
-
       resource_id= {User,{:id,1}}
       lock = Mutex.await(@menu, resource_id)
-
+      #name ; service type ; price ;payment
       Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:apps => x,:type => rand_rideType(), :price=> rand_price(), 
-                                                              :payment => rand_payType(), :duration=> rand_rideTime(), :pickUP => rand_location(), 
-                                                              :dropoff => rand_location(), :created =>  DateTime.utc_now()} ) end)
-        
+                                                              :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
       #:timer.sleep(1000)
       num =current_count()
       tup = current_reqs()
