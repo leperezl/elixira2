@@ -95,7 +95,7 @@ defmodule Rider do
       {IO.puts("-- -- - -- -- - - -- - -- --- -- -- -- - -")}
       new = IO.gets("Please select one in the next (30 secs):  Type <number> thats in the list above (it selects that number)\n")
       sel= new |> String.trim("\n") |> String.to_integer()
-      counter = current_count()
+      counter = elem(current_count(),1)
       cond do
         sel < counter -> add_select(sel)
         sel >= counter-> IO.puts("- --- ---- Not in List!!!")
@@ -103,7 +103,7 @@ defmodule Rider do
     end
 
     def add_select(sel) do
-      tup = current_reqs()
+      tup = elem(current_reqs(),1)
       req = elem(tup, sel)
       t = Time.diff(DateTime.utc_now(), Map.get(req,:created))
       cond do
@@ -160,7 +160,7 @@ defmodule Rider do
           {x,y,z,a,b} -> req_spawner5(x,y,z,a,b)
           _ -> {IO.puts("-------- More than 5 apps ? come on man ! delete one \n - --- - Use Rider.unregister({<app>, <comm>})")}
         end
-
+        
         menu()
         #Enum.map(apps, fn x -> req_spawner(x) end) 
     end
@@ -181,6 +181,7 @@ defmodule Rider do
         2 -> select()
         3 -> current_apps()
         4 -> reset_reqs()
+        5 -> current_reqs()
         _ -> menu()
       end
     end
@@ -258,35 +259,31 @@ defmodule Rider do
       #name ; service type ; price ;payment
      
         #:timer.sleep(1000)
-      Amnesia.transaction do
+      Mnesia.transaction(fn ->
         
-        Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => current_count(), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
-        :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
-        add_count()
-        printer()
-      end
+      Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => elem(current_count(),1), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
+                                                            :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
+                                                            Agent.update(@count, fn content -> content + 1 end)
+      num = elem(current_count(),1)
+    end)
+
+      IO.inspect(elem(printer(),1))
+        
+        
      
       #Mutex.release(@menu, lock)
     end
 
-    def request_add(x) do
-      Amnesia.transaction do
-        Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => current_count(), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
-                                                                  :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
-        add_count()
-      end
-      
-        printer()
-    end
-    #When 
+    #|> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
+    #elem(tup,tuple_size(tup)-1)
     def printer do
-      Amnesia.transaction do
-        num = current_count()
-        tup = current_reqs()
-        req = elem(tup, num)
-        res = {num, req}
-        IO.inspect(res)
-      end
+      Mnesia.transaction(fn ->
+        num = elem(current_count(),1)
+        tup = elem(current_reqs(),1)
+        req = tup |> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
+        
+        req
+      end)
     end
 
     
@@ -295,6 +292,8 @@ defmodule Rider do
        # Mutex.child_spec(@menu)
         #]
         #{:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
+      Mnesia.create_schema([node()])
+      Mnesia.start()
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
@@ -307,15 +306,15 @@ defmodule Rider do
     end
 
     def current_reqs do
-      Amnesia.transaction do
+      Mnesia.transaction(fn ->
         Agent.get(@reqs, fn content -> content end)
-      end
+      end)
     end
 
     def current_count do
-      Amnesia.transaction do
+      Mnesia.transaction(fn ->
         Agent.get(@count, fn content -> content end)
-      end
+      end)
     end
 
     def current_select do
@@ -327,9 +326,9 @@ defmodule Rider do
     end
 
     def add_count do
-      Amnesia.transaction do
+      Mnesia.transaction(fn -> 
         Agent.update(@count, fn content -> content + 1 end)
-      end
+      end)
     end
 
     def reset_apps do
