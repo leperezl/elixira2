@@ -14,6 +14,10 @@
             #-> Bigger Mutex activated by global boolean that will signify one request is activated and it should be changed after a timeout
             #-> 2 functions, one to select init and one that will return after X time
 defmodule Rider do
+  require Amnesia
+  require Amnesia.Helper
+  alias :mnesia, as: Mnesia
+
   @menu MenuMutex
   @apps Apps
   @reqs Requests
@@ -150,12 +154,13 @@ defmodule Rider do
         appTup = List.to_tuple(apps)
         case appTup do
           {x} -> req_spawner(x)
-          {x,y} -> req_spawner2(x,y)
+          {x,y} -> req_spawner2(x,y) 
           {x,y,z} -> req_spawner3(x,y,z)
           {x,y,z,a} -> req_spawner4(x,y,z,a)
           {x,y,z,a,b} -> req_spawner5(x,y,z,a,b)
           _ -> {IO.puts("-------- More than 5 apps ? come on man ! delete one \n - --- - Use Rider.unregister({<app>, <comm>})")}
         end
+
         menu()
         #Enum.map(apps, fn x -> req_spawner(x) end) 
     end
@@ -248,30 +253,48 @@ defmodule Rider do
 
 
     def make_req(x) do
-      resource_id= {User,{:id,1}}
-      lock = Mutex.await(@menu, resource_id)
+      #resource_id= {User,{:id,1}}
+      #lock = Mutex.await(@menu, resource_id)
       #name ; service type ; price ;payment
-      Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:apps => x,:type => rand_rideType(), :price=> rand_price(), 
-                                                              :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
-      #:timer.sleep(1000)
-      num =current_count()
-      tup = current_reqs()
-      req = elem(tup, num)
-      add_count()
-      res = {num, req}
-      IO.inspect(res)
-      Mutex.release(@menu, lock)
+     
+        #:timer.sleep(1000)
+      Amnesia.transaction do
+        
+        Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => current_count(), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
+        :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
+        add_count()
+        printer()
+      end
+     
+      #Mutex.release(@menu, lock)
     end
 
+    def request_add(x) do
+      Amnesia.transaction do
+        Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => current_count(), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
+                                                                  :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
+        add_count()
+      end
+      
+        printer()
+    end
     #When 
+    def printer do
+      Amnesia.transaction do
+        num = current_count()
+        tup = current_reqs()
+        req = elem(tup, num)
+        res = {num, req}
+        IO.inspect(res)
+      end
+    end
 
     
     def start do
-      children = [
-        Mutex.child_spec(@menu)
-        ]
-        {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
-        
+      #children = [
+       # Mutex.child_spec(@menu)
+        #]
+        #{:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
@@ -284,11 +307,15 @@ defmodule Rider do
     end
 
     def current_reqs do
-      Agent.get(@reqs, fn content -> content end)
+      Amnesia.transaction do
+        Agent.get(@reqs, fn content -> content end)
+      end
     end
 
     def current_count do
-      Agent.get(@count, fn content -> content end)
+      Amnesia.transaction do
+        Agent.get(@count, fn content -> content end)
+      end
     end
 
     def current_select do
@@ -300,7 +327,9 @@ defmodule Rider do
     end
 
     def add_count do
-      Agent.update(@count, fn content -> content + 1 end)
+      Amnesia.transaction do
+        Agent.update(@count, fn content -> content + 1 end)
+      end
     end
 
     def reset_apps do
