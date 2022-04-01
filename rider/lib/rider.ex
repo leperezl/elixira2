@@ -14,9 +14,7 @@
             #-> Bigger Mutex activated by global boolean that will signify one request is activated and it should be changed after a timeout
             #-> 2 functions, one to select init and one that will return after X time
 defmodule Rider do
-  require Amnesia
-  require Amnesia.Helper
-  alias :mnesia, as: Mnesia
+
 
   @menu MenuMutex
   @apps Apps
@@ -95,7 +93,7 @@ defmodule Rider do
       {IO.puts("-- -- - -- -- - - -- - -- --- -- -- -- - -")}
       new = IO.gets("Please select one in the next (30 secs):  Type <number> thats in the list above (it selects that number)\n")
       sel= new |> String.trim("\n") |> String.to_integer()
-      counter = elem(current_count(),1)
+      counter = current_count()
       cond do
         sel < counter -> add_select(sel)
         sel >= counter-> IO.puts("- --- ---- Not in List!!!")
@@ -103,7 +101,9 @@ defmodule Rider do
     end
 
     def add_select(sel) do
-      tup = elem(current_reqs(),1)
+      tup = current_reqs()
+      IO.puts("this is tup")
+      IO.inspect(tup)
       req = elem(tup, sel)
       t = Time.diff(DateTime.utc_now(), Map.get(req,:created))
       cond do
@@ -254,46 +254,38 @@ defmodule Rider do
 
 
     def make_req(x) do
-      #resource_id= {User,{:id,1}}
-      #lock = Mutex.await(@menu, resource_id)
-      #name ; service type ; price ;payment
-     
-        #:timer.sleep(1000)
-      Mnesia.transaction(fn ->
+      resource_id= {User,{:id,1}}
+      lock = Mutex.await(@menu, resource_id)
         
-      Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => elem(current_count(),1), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
+      Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => current_count(), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
                                                             :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
-                                                            Agent.update(@count, fn content -> content + 1 end)
-      num = elem(current_count(),1)
-    end)
+                                                           
+      num =current_count()
+      tup = current_reqs()
+      req = elem(tup, num)
+      add_count()
+      res = {num, req}
+      IO.inspect(res)
 
-      IO.inspect(elem(printer(),1))
-        
-        
      
-      #Mutex.release(@menu, lock)
+      Mutex.release(@menu, lock)
     end
 
     #|> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
     #elem(tup,tuple_size(tup)-1)
     def printer do
-      Mnesia.transaction(fn ->
-        num = elem(current_count(),1)
-        tup = elem(current_reqs(),1)
+        num = current_count()
+        tup = current_reqs()
         req = tup |> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
-        
         req
-      end)
     end
 
     
     def start do
-      #children = [
-       # Mutex.child_spec(@menu)
-        #]
-        #{:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
-      Mnesia.create_schema([node()])
-      Mnesia.start()
+      children = [
+        Mutex.child_spec(@menu)
+        ]
+        {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
@@ -306,15 +298,11 @@ defmodule Rider do
     end
 
     def current_reqs do
-      Mnesia.transaction(fn ->
         Agent.get(@reqs, fn content -> content end)
-      end)
     end
 
     def current_count do
-      Mnesia.transaction(fn ->
         Agent.get(@count, fn content -> content end)
-      end)
     end
 
     def current_select do
@@ -326,9 +314,7 @@ defmodule Rider do
     end
 
     def add_count do
-      Mnesia.transaction(fn -> 
         Agent.update(@count, fn content -> content + 1 end)
-      end)
     end
 
     def reset_apps do
