@@ -148,22 +148,6 @@ defmodule Rider do
       Agent.update(@apps,fn list -> List.delete(list,app) end) 
     end
 
-    #helper function that generates requests based on the current apps registered
-    def requests_make do
-        apps = current_apps()
-        appTup = List.to_tuple(apps)
-        case appTup do
-          {x} -> req_spawner(x)
-          {x,y} -> req_spawner2(x,y) 
-          {x,y,z} -> req_spawner3(x,y,z)
-          {x,y,z,a} -> req_spawner4(x,y,z,a)
-          {x,y,z,a,b} -> req_spawner5(x,y,z,a,b)
-          _ -> {IO.puts("-------- More than 5 apps ? come on man ! delete one \n - --- - Use Rider.unregister({<app>, <comm>})")}
-        end
-        
-        menu()
-        #Enum.map(apps, fn x -> req_spawner(x) end) 
-    end
 
     def requests_periodic(oldTime) do
         old = oldTime
@@ -204,15 +188,24 @@ defmodule Rider do
       apps = Enum.count(current_apps())
         cond do
           apps == 0 -> register()
-          apps > 0 -> spawn(fn -> requests_periodic(DateTime.utc_now()) end)
+          apps > 0 -> req_process()
         end
     end
 
+    def req_process do
+      proc = spawn(fn -> requests_periodic(DateTime.utc_now()) end)
+      Process.register(proc, :req_proc)
+    end
+
+    def req_stop do
+      Process.exit(Process.whereis(:req_proc), :kill)
+    end
+
     def menu do
-      ch = IO.gets("--------- -- -- --- -- - \n 1. More requests \n 2. Select a service \n 3. Exit \n 4. Reset requests \n chOOse one option!!\n")
+      ch = IO.gets("--------- -- -- --- -- - \n 1. STOP requests \n 2. Select a service \n 3. Exit \n 4. Reset requests \n chOOse one option!!\n")
       sel= ch |> String.trim("\n") |> String.to_integer()
       case sel do
-        1 -> requests()
+        1 -> req_stop()
         2 -> select()
         3 -> current_apps()
         4 -> reset_reqs()
@@ -221,77 +214,8 @@ defmodule Rider do
       end
     end
 
-    def req_spawner(x) do
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(x) end) 
-    end
-
-    def req_spawner2(x,y) do
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-    end
-
-    def req_spawner3(x,y,z) do
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(x) end) 
-    end
-
-    def req_spawner4(x,y,z,a) do
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(a) end) 
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(a) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(y) end) 
-    end
-
-    def req_spawner5(x,y,z,a, b) do
-      spawn(fn -> make_req(y) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(a) end) 
-      spawn(fn -> make_req(b) end) 
-      spawn(fn -> make_req(z) end) 
-      spawn(fn -> make_req(a) end) 
-      spawn(fn -> make_req(x) end) 
-      spawn(fn -> make_req(b) end) 
-      spawn(fn -> make_req(y) end) 
-    end
-
-
 
     def make_req(x) do
-      resource_id= {User,{:id,1}}
-      lock = Mutex.await(@menu, resource_id)
-        
       Agent.update(@reqs,fn tuple -> Tuple.append(tuple,  %{:count => current_count(), :apps => x,:type => rand_rideType(), :price=> rand_price(), 
                                                             :payment => rand_payType(),:name => rand_name() ,:created =>  DateTime.utc_now()} ) end) 
                                                            
@@ -303,7 +227,7 @@ defmodule Rider do
       IO.inspect(res)
 
      
-      Mutex.release(@menu, lock)
+     
     end
 
     #|> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
