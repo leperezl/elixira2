@@ -14,7 +14,7 @@
             #-> Bigger Mutex activated by global boolean that will signify one request is activated and it should be changed after a timeout
             #-> 2 functions, one to select init and one that will return after X time
 defmodule Rider do
-  #use CSP
+  use CSP
 
   @menu MenuMutex
   @apps Apps
@@ -90,6 +90,8 @@ defmodule Rider do
     end
 
     def select() do
+
+     
       {IO.puts("-- -- - -- -- - - -- - -- --- -- -- -- - -")}
       new = IO.gets("Please select one in the next (30 secs):  Type <number> thats in the list above (it selects that number)\n")
       sel= new |> String.trim("\n") |> String.to_integer()
@@ -98,9 +100,11 @@ defmodule Rider do
         sel < counter -> add_select(sel)
         sel >= counter-> IO.puts("- --- ---- Not in List!!!")
       end
+      
     end
 
     def add_select(sel) do
+      
       tup = current_reqs()
       IO.puts("this is tup")
       IO.inspect(tup)
@@ -110,9 +114,11 @@ defmodule Rider do
         t <90 -> select_time(req)
         t >=90 -> reselect(t)
       end
+      
     end
 
-    def select_time(req) do
+    def select_time(req,) do
+      Channel.get(chan1)
       IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  v Current service vrrrooo oo ooo mmmm v")
       def = Map.merge(req, %{:duration=> rand_rideTime(), :pickUP => rand_location(), :dropoff => rand_location()}) 
       Agent.update(@select, fn map -> def end)
@@ -123,6 +129,7 @@ defmodule Rider do
       IO.puts("- -Service Over   :)")
       reset_select()
       reset_reqs()
+      Channel.put(chan1, :serve)
     end
 
     def reselect(t) do
@@ -150,6 +157,7 @@ defmodule Rider do
 
 
     def requests_periodic(oldTime) do
+        Channel.put(chan1, :serve)
         old = oldTime
         now = DateTime.utc_now()
         dif = Time.diff(now, old)
@@ -157,6 +165,7 @@ defmodule Rider do
           dif > 3 -> continue_reqs()
           true -> requests_periodic(old)
         end
+        Channel.get(chan1)
     end
 
     def continue_reqs do
@@ -190,9 +199,11 @@ defmodule Rider do
           apps == 0 -> register()
           apps > 0 -> req_process()
         end
+      
     end
 
     def req_process do
+      
       proc = spawn(fn -> requests_periodic(DateTime.utc_now()) end)
       Process.register(proc, :req_proc)
     end
@@ -232,19 +243,15 @@ defmodule Rider do
 
     #|> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
     #elem(tup,tuple_size(tup)-1)
-    def printer do
-        num = current_count()
-        tup = current_reqs()
-        req = tup |> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
-        req
-    end
 
     
     def start do
       children = [
-        Mutex.child_spec(@menu)
-        ]
-        {:ok, _pid} = Supervisor.start_link(children, strategy: :one_for_one) 
+        worker(Channel, [[name: chan1]])
+      ]
+      
+      {:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      chan1 = Channel.new
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
