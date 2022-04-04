@@ -14,7 +14,7 @@
             #-> Bigger Mutex activated by global boolean that will signify one request is activated and it should be changed after a timeout
             #-> 2 functions, one to select init and one that will return after X time
 defmodule Rider do
-
+  #use CSP
 
   @menu MenuMutex
   @apps Apps
@@ -107,8 +107,8 @@ defmodule Rider do
       req = elem(tup, sel)
       t = Time.diff(DateTime.utc_now(), Map.get(req,:created))
       cond do
-        t <30 -> select_time(req)
-        t >=30 -> reselect(t)
+        t <90 -> select_time(req)
+        t >=90 -> reselect(t)
       end
     end
 
@@ -126,7 +126,7 @@ defmodule Rider do
     end
 
     def reselect(t) do
-        r = t-30
+        r = t-90
         IO.puts("That request has expired by #{r} seconds")
         select()
     end
@@ -165,11 +165,46 @@ defmodule Rider do
         #Enum.map(apps, fn x -> req_spawner(x) end) 
     end
 
+    def requests_periodic(oldTime) do
+        old = oldTime
+        now = DateTime.utc_now()
+        dif = Time.diff(now, old)
+       cond do
+          dif > 3 -> continue_reqs()
+          true -> requests_periodic(old)
+        end
+    end
+
+    def continue_reqs do
+      apps = current_apps()
+      appTup = List.to_tuple(apps)
+      size = tuple_size(appTup)
+      app =  elem(appTup,:rand.uniform(size) -1)
+      make_req(app)
+      requests_periodic(DateTime.utc_now())
+    end
+
+    def timer(oldTime) do
+      old = oldTime
+      now = DateTime.utc_now()
+      dif = Time.diff(now, old)
+     
+     cond do
+        dif > 5 -> continue()
+        true -> timer(old)
+      end
+    end
+
+    def continue do
+      IO.puts("ping")
+      timer(DateTime.utc_now())
+    end
+
     def requests do
       apps = Enum.count(current_apps())
         cond do
           apps == 0 -> register()
-          apps > 0 -> requests_make()
+          apps > 0 -> spawn(fn -> requests_periodic(DateTime.utc_now()) end)
         end
     end
 
