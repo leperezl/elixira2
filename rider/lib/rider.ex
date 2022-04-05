@@ -15,7 +15,9 @@
             #-> 2 functions, one to select init and one that will return after X time
 defmodule Rider do
   use CSP
+  import Supervisor.Spec
 
+  @chan1 Chan1
   @menu MenuMutex
   @apps Apps
   @reqs Requests
@@ -117,8 +119,8 @@ defmodule Rider do
       
     end
 
-    def select_time(req,) do
-      Channel.get(chan1)
+    def select_time(req) do
+      Channel.get(@chan1)
       IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  v Current service vrrrooo oo ooo mmmm v")
       def = Map.merge(req, %{:duration=> rand_rideTime(), :pickUP => rand_location(), :dropoff => rand_location()}) 
       Agent.update(@select, fn map -> def end)
@@ -128,8 +130,8 @@ defmodule Rider do
       :timer.sleep(sleep*1000)
       IO.puts("- -Service Over   :)")
       reset_select()
-      reset_reqs()
-      Channel.put(chan1, :serve)
+      #reset_reqs()
+      Channel.put(@chan1, :serve)
     end
 
     def reselect(t) do
@@ -157,15 +159,16 @@ defmodule Rider do
 
 
     def requests_periodic(oldTime) do
-        Channel.put(chan1, :serve)
+        Channel.put(@chan1, :serve)
         old = oldTime
         now = DateTime.utc_now()
         dif = Time.diff(now, old)
+        Channel.get(@chan1)
        cond do
           dif > 3 -> continue_reqs()
           true -> requests_periodic(old)
         end
-        Channel.get(chan1)
+       
     end
 
     def continue_reqs do
@@ -247,11 +250,11 @@ defmodule Rider do
     
     def start do
       children = [
-        worker(Channel, [[name: chan1]])
+        worker(Channel, [[name: @chan1, buffer_size: 10]])
       ]
-      
       {:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)
-      chan1 = Channel.new
+
+      #chan1 = Channel.new
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
