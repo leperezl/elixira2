@@ -23,6 +23,7 @@ defmodule Rider do
   @reqs Requests
   @count Count
   @select Selected
+  @check Check
 
   @rideType {:food, :drive}
   @comm {:api, :phone, :mssg, :fax}
@@ -196,6 +197,15 @@ defmodule Rider do
       timer(DateTime.utc_now())
     end
 
+    def requests_check() do
+      add_check()
+      check = current_check()
+        cond do
+          check < 2 -> requests()
+          check >=2 -> IO.puts("The requests process is already running")
+        end
+    end
+
     def requests do
       apps = Enum.count(current_apps())
         cond do
@@ -206,24 +216,24 @@ defmodule Rider do
     end
 
     def req_process do
-      
       proc = spawn(fn -> requests_periodic(DateTime.utc_now()) end)
       Process.register(proc, :req_proc)
     end
 
     def req_stop do
+      reset_check()
       Process.exit(Process.whereis(:req_proc), :kill)
     end
 
     def menu do
-      ch = IO.gets("--------- -- -- --- -- - \n 1. STOP requests \n 2. Select a service \n 3. Exit \n 4. Reset requests \n chOOse one option!!\n")
+      ch = IO.gets("--------- -- -- --- -- - \n 1. Make requests \n 2. Select a service \n 3. Exit \n 4. Reset requests \n 5. Stop requests \n chOOse one option!!\n")
       sel= ch |> String.trim("\n") |> String.to_integer()
       case sel do
-        1 -> req_stop()
+        1 -> requests_check()
         2 -> select()
         3 -> current_apps()
         4 -> reset_reqs()
-        5 -> current_reqs()
+        5 -> req_stop()
         _ -> menu()
       end
     end
@@ -240,8 +250,6 @@ defmodule Rider do
       res = {num, req}
       IO.inspect(res)
 
-     
-     
     end
 
     #|> Tuple.to_list() |>Enum.reverse()|> Enum.slice(0,10) |> Enum.reverse()
@@ -259,6 +267,8 @@ defmodule Rider do
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
       Agent.start_link(fn -> 0 end , name: @count)
+      Agent.start_link(fn -> 0 end , name: @check)
+
       
     end
 
@@ -274,6 +284,10 @@ defmodule Rider do
         Agent.get(@count, fn content -> content end)
     end
 
+    def current_check do
+      Agent.get(@check, fn content -> content end)
+  end
+
     def current_select do
       Agent.get(@select, fn content -> content end)
     end
@@ -286,12 +300,20 @@ defmodule Rider do
         Agent.update(@count, fn content -> content + 1 end)
     end
 
+    def add_check do
+      Agent.update(@check, fn content -> content + 1 end)
+  end
+
     def reset_apps do
       Agent.update(@apps, fn content -> [] end)
     end
 
     def reset_count do
       Agent.update(@count, fn content -> 0 end)
+    end
+
+    def reset_check do
+      Agent.update(@check, fn content -> 0 end)
     end
 
     def reset_reqs do
