@@ -197,16 +197,16 @@ defmodule Rider do
       timer(DateTime.utc_now())
     end
 
-    def requests_check() do
+    def requests do
       add_check()
       check = current_check()
         cond do
-          check < 2 -> requests()
+          check < 2 -> requests_run()
           check >=2 -> IO.puts("The requests process is already running")
         end
     end
 
-    def requests do
+    def requests_run do
       apps = Enum.count(current_apps())
         cond do
           apps == 0 -> register()
@@ -229,7 +229,7 @@ defmodule Rider do
       ch = IO.gets("--------- -- -- --- -- - \n 1. Make requests \n 2. Select a service \n 3. Exit \n 4. Reset requests \n 5. Stop requests \n chOOse one option!!\n")
       sel= ch |> String.trim("\n") |> String.to_integer()
       case sel do
-        1 -> requests_check()
+        1 -> requests()
         2 -> select()
         3 -> current_apps()
         4 -> reset_reqs()
