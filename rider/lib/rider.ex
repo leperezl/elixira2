@@ -14,8 +14,7 @@
             #-> Bigger Mutex activated by global boolean that will signify one request is activated and it should be changed after a timeout
             #-> 2 functions, one to select init and one that will return after X time
 defmodule Rider do
-  use CSP
-  import Supervisor.Spec
+ 
 
   @chan1 Chan1
   @menu MenuMutex
@@ -109,8 +108,6 @@ defmodule Rider do
     def add_select(sel) do
       
       tup = current_reqs()
-      IO.puts("this is tup")
-      IO.inspect(tup)
       req = elem(tup, sel)
       t = Time.diff(DateTime.utc_now(), Map.get(req,:created))
       cond do
@@ -121,18 +118,16 @@ defmodule Rider do
     end
 
     def select_time(req) do
-      Channel.get(@chan1)
+      
       IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  v Current service vrrrooo oo ooo mmmm v")
       def = Map.merge(req, %{:duration=> rand_rideTime(), :pickUP => rand_location(), :dropoff => rand_location()}) 
       Agent.update(@select, fn map -> def end)
       IO.inspect(def)
       sleep =Map.get(def, :duration)
       IO.puts("-- -- - -- - -- --- -- - -- -- - -- - - \n  Service ongoing, please wait #{sleep} seconds ")
-      :timer.sleep(sleep*1000)
-      IO.puts("- -Service Over   :)")
+      send Process.whereis(:req_actor), {:wait, sleep*1000}
       reset_select()
       #reset_reqs()
-      Channel.put(@chan1, :serve)
     end
 
     def reselect(t) do
@@ -160,16 +155,25 @@ defmodule Rider do
 
 
     def requests_periodic(oldTime) do
-        Channel.put(@chan1, :serve)
         old = oldTime
         now = DateTime.utc_now()
         dif = Time.diff(now, old)
-        Channel.get(@chan1)
        cond do
-          dif > 3 -> continue_reqs()
+          dif > 3 -> send Process.whereis(:req_actor), {:ok}
           true -> requests_periodic(old)
         end
        
+    end
+
+    def reqs_actor do
+        receive do 
+          {:ok} -> continue_reqs()
+          {:wait, a} -> 
+                      :timer.sleep(a)
+                      IO.puts("- -Service Over   :)")
+        end
+      reqs_actor()
+          
     end
 
     def continue_reqs do
@@ -200,10 +204,7 @@ defmodule Rider do
     def requests do
       add_check()
       check = current_check()
-        cond do
-          check < 2 -> requests_run()
-          check >=2 -> IO.puts("The requests process is already running")
-        end
+      requests_run()
     end
 
     def requests_run do
@@ -217,12 +218,16 @@ defmodule Rider do
 
     def req_process do
       proc = spawn(fn -> requests_periodic(DateTime.utc_now()) end)
-      Process.register(proc, :req_proc)
+      proc = spawn(fn -> reqs_actor() end)
+      Process.register(proc, :req_actor)
     end
 
     def req_stop do
       reset_check()
-      Process.exit(Process.whereis(:req_proc), :kill)
+      cond do 
+      Process.whereis(:req_actor) == nil -> IO.puts("the process is already dead")
+      true -> Process.exit(Process.whereis(:req_actor), :kill)
+      end
     end
 
     def menu do
@@ -257,19 +262,23 @@ defmodule Rider do
 
     
     def start do
-      children = [
-        worker(Channel, [[name: @chan1, buffer_size: 10]])
-      ]
-      {:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)
-
       #chan1 = Channel.new
       Agent.start_link(fn -> [] end , name: @apps)
       Agent.start_link(fn -> {} end , name: @reqs)
       Agent.start_link(fn -> %{}end, name: @select)
       Agent.start_link(fn -> 0 end , name: @count)
       Agent.start_link(fn -> 0 end , name: @check)
+    end
 
-      
+    def boot do
+      start()
+      add_item({"ok", "test1"})
+      add_item({"bruuhhhh", "test2"})
+    end
+
+    def actor_live do
+      #Process.alive?(Process.whereis(:req_actor))
+      Process.whereis(:req_proc)
     end
 
     def current_apps do
